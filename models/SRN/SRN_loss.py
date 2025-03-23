@@ -74,8 +74,13 @@ class IDMRFLoss(nn.Module):
         meanT = torch.mean(tar, 1, keepdim=True)
         gen_feats, tar_feats = gen - meanT, tar - meanT
 
+        eps = 1e-8
+
         gen_feats_norm = torch.norm(gen_feats, p=2, dim=1, keepdim=True)
         tar_feats_norm = torch.norm(tar_feats, p=2, dim=1, keepdim=True)
+
+        gen_feats_norm = torch.clamp(gen_feats_norm, min=eps)
+        tar_feats_norm = torch.clamp(tar_feats_norm, min=eps)
 
         gen_normalized = gen_feats / gen_feats_norm
         tar_normalized = tar_feats / tar_feats_norm
@@ -97,6 +102,9 @@ class IDMRFLoss(nn.Module):
         dims_div_mrf = rela_dist.size()
         k_max_nc = torch.max(rela_dist.view(dims_div_mrf[0], dims_div_mrf[1], -1), dim=2)[0]
         div_mrf = torch.mean(k_max_nc, dim=1)
+
+        div_mrf = torch.clamp(div_mrf, min=1e-8)
+
         div_mrf_sum = -torch.log(div_mrf)
         div_mrf_sum = torch.sum(div_mrf_sum)
         return div_mrf_sum

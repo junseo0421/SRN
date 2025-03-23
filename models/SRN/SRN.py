@@ -187,6 +187,9 @@ class build_generator(nn.Module):
     def context_normalization(self, x, mask, alpha=.5, eps=1e-5):
         mask_s = F.interpolate(1 - mask[:, :1, :, :], x.shape[2:])
         x_known_mean, x_known_variance = self.estimate_meanvar(x, mask_s, eps)
+
+        x_known_variance = torch.clamp(x_known_variance, min=1e-6)
+
         mask_s_rev = 1 - mask_s
         x_unknown_mean, x_unknown_variance = self.estimate_meanvar(x, mask_s_rev, eps)
         x_unknown = alpha * F.batch_norm(x * mask_s_rev, x_unknown_mean, x_unknown_variance,
