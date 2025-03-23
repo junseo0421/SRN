@@ -37,14 +37,14 @@ def generateViz(x):
 
 
 if __name__ == "__main__":
-    NAME_DATASET = 'HKdb-1'
-    SAVE_BASE_DIR = r'D:\comparison\srn\output'
+    NAME_DATASET = 'HKdb-2'
+    SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
     SAVE_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
     SAVE_LOG_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'logs_all')
     LOAD_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
 
-    base_dir = r'C:\Users\8138\Desktop\SD&HK finger-vein DB'
+    base_dir = '/content'
 
     os.makedirs(SAVE_WEIGHT_DIR, exist_ok=True)
     os.makedirs(SAVE_LOG_DIR, exist_ok=True)
