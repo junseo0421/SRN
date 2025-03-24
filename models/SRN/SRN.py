@@ -33,8 +33,8 @@ args = Namespace(
     pretrain_l1_alpha=1.2,
     wgan_gp_lambda=10,
     gan_loss_alpha=1e-3,
-    mrf_alpha=.005,
-    l1_loss_alpha=50,
+    mrf_alpha=.05,
+    l1_loss_alpha=5,
     # ae_loss_alpha=1.2,
 )
 
