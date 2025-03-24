@@ -419,8 +419,8 @@ class SemanticRegenerationNet(nn.Module):
         # batch_incomplete_pad = F.pad(batch_incomplete, (margin.left, margin.right, margin.top, margin.bottom))
         # viz_img = torch.cat([x[0], batch_incomplete_pad[0], batch_complete[0]], axis=2)  # 원본 이미지, 마스크로 가려진 불완전 이미지, 복원 결과 (완성된 이미지)
         viz_img = torch.cat([x[0], batch_complete[0]], axis=2)
-        viz_img = torch.clamp(viz_img, 0, 1)
-        viz_img = compressTensor(viz_img).transpose(1, 2, 0) * 255  # 0 ~ 255
+        viz_img = torch.clamp(viz_img, -1, 1)
+        viz_img = compressTensor(viz_img).transpose(1, 2, 0) * 127.5 + 127.5
         # if not self.config.pretrained_network:
         losses['g_loss'] = global_wgan_loss_alpha * g_loss_global + g_loss_local
         losses['g_loss'] *= self.config.gan_loss_alpha
