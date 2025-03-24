@@ -57,7 +57,7 @@ if __name__ == "__main__":
     p.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
     p.add_argument('--img_shapes', nargs='+', default=[192, 192, 3])
     p.add_argument('--mask_shapes', nargs='+', default=[192, 128])
-    p.add_argument('--batch_size', type=int, default=4)
+    p.add_argument('--batch_size', type=int, default=8)
     p.add_argument('--feat_expansion_op', type=str, default='subpixel')
     p.add_argument('--use_cn', type=int, default=1)
     p.add_argument('--g_cnum', type=int, default=64)
