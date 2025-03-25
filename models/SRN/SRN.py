@@ -360,9 +360,9 @@ class SemanticRegenerationNet(nn.Module):
 
         return torch.mean(torch.square(slopes - norm))
 
-    def updateMask(self, mask, mask_priority, margin):
+    def updateMask(self, mask, margin):
         self.mask, self.margin = mask, margin
-        self.mask_priority = mask_priority
+        # self.mask_priority = mask_priority
 
     def forwardD(self, x, batch_complete, mask, losses):
         # gan
@@ -404,7 +404,7 @@ class SemanticRegenerationNet(nn.Module):
         losses['d_loss'] += losses['gp_loss']
         return g_loss_local, d_loss_local, g_loss_global, g_loss_global, losses
 
-    def forwardG(self, x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses):
+    def forwardG(self, x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses):
         # generator
         x_ = batch_predicted
 
@@ -417,9 +417,8 @@ class SemanticRegenerationNet(nn.Module):
             losses['id_mrf_loss'] = self.mrfloss(batch_predicted, x)
 
         # loss calculation for generator
-        losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask_priority)
-        # losses['ae_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * (1 - mask))
-        # losses['ae_loss'] /= torch.mean(1 - mask)
+        # losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask_priority)
+        losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask)
 
         g_loss_local, d_loss_local, g_loss_global, g_loss_global, losses = self.forwardD(x, batch_complete, mask, losses)
 
@@ -438,7 +437,7 @@ class SemanticRegenerationNet(nn.Module):
         if self.config.mrf_alpha:
             losses['g_loss'] += self.config.mrf_alpha * losses['id_mrf_loss']
         losses['g_loss'] += self.config.l1_loss_alpha * losses['l1_loss']
-        # losses['g_loss'] += self.config.ae_loss_alpha * losses['ae_loss']
+        
         return losses, viz_img
 
     def forward(self, x, mask_img, oG=None, oD=None):
@@ -451,8 +450,8 @@ class SemanticRegenerationNet(nn.Module):
         # batch_incomplete = x[:, :, margin.top:margin.top + self.config.mask_shapes[0], margin.left:margin.left + self.config.mask_shapes[1]]  # 양옆이 잘린 이미지, 192 x 128
         batch_incomplete = mask_img
 
-        mask_priority = self.relative_spatial_variant_mask(mask)
-        self.updateMask(mask, mask_priority, margin)
+        # mask_priority = self.relative_spatial_variant_mask(mask)
+        self.updateMask(mask, margin)
         x_, x_fe = self.build_generator(batch_incomplete, mask, margin)  # x_ : 복원 이미지
         batch_predicted = x_
 
@@ -469,13 +468,14 @@ class SemanticRegenerationNet(nn.Module):
                 oD.step()
 
             oG.zero_grad()
-            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses)
+            # losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses)
+            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses)
             losses['g_loss'].backward()
             oG.step()
         else:
             _, _, _, _, losses = self.forwardD(x, batch_complete, mask, losses)
-            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority,
-                                            margin, losses)
+            # losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses)
+            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses)
         return losses, viz_img  # viz_img : 0~255
 
 
