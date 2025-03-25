@@ -51,6 +51,8 @@ class IDMRFLoss(nn.Module):
 
     def sum_normalize(self, featmaps):
         reduce_sum = torch.sum(featmaps, dim=1, keepdim=True)
+        reduce_sum = torch.clamp(reduce_sum, min=1e-6)
+
         return featmaps / reduce_sum
 
     def patch_extraction(self, featmaps):
