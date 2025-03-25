@@ -22,7 +22,11 @@ def gradient_penalty(xin, yout, mask=None):
     if mask is not None:
         gradients = gradients * mask
     gradients = gradients.view(gradients.size(0), -1)
-    gp = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    # gp = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    norms = gradients.norm(2, dim=1)
+    norms = torch.clamp(norms, min=1e-6)
+    gp = ((norms - 1) ** 2).mean()
+
     return gp
 
 
@@ -74,7 +78,7 @@ class IDMRFLoss(nn.Module):
         meanT = torch.mean(tar, 1, keepdim=True)
         gen_feats, tar_feats = gen - meanT, tar - meanT
 
-        eps = 1e-8
+        eps = 1e-6
 
         gen_feats_norm = torch.norm(gen_feats, p=2, dim=1, keepdim=True)
         tar_feats_norm = torch.norm(tar_feats, p=2, dim=1, keepdim=True)
@@ -103,7 +107,7 @@ class IDMRFLoss(nn.Module):
         k_max_nc = torch.max(rela_dist.view(dims_div_mrf[0], dims_div_mrf[1], -1), dim=2)[0]
         div_mrf = torch.mean(k_max_nc, dim=1)
 
-        div_mrf = torch.clamp(div_mrf, min=1e-8)
+        div_mrf = torch.clamp(div_mrf, min=1e-6)
 
         div_mrf_sum = -torch.log(div_mrf)
         div_mrf_sum = torch.sum(div_mrf_sum)

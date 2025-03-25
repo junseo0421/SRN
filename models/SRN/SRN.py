@@ -283,7 +283,13 @@ class build_contextual_wgan_discriminator(nn.Module):
         mask_ = self.max_downsampling(mask, ratio=8)
         x_ = x_ * mask_
         # 2x?,
-        x_ = torch.sum(x_, [1, 2, 3]) / torch.sum(mask_, [1, 2, 3])
+        # x_ = torch.sum(x_, [1, 2, 3]) / torch.sum(mask_, [1, 2, 3])
+
+        denom = torch.sum(mask_, [1, 2, 3])
+        denom = torch.clamp(denom, min=1e-6)
+        numerator = torch.sum(x_ * mask_, [1, 2, 3])
+        x_ = numerator / denom
+
         # 1,1,256,256
         mask_local = F.interpolate(mask_, [h, w])
 
@@ -318,7 +324,7 @@ class SemanticRegenerationNet(nn.Module):
             # mask_priority = F.interpolate(self.subpixelconv(init),mask.shape[2:])
             mask_priority *= mask
             if i == iters - 2:
-                mask_priority_pre = mask_priority
+                mask_priority_pre = torch.clamp(mask_priority + eps, min=eps)
             init = mask_priority + (1 - mask)
         mask_priority = mask_priority_pre / torch.clamp(mask_priority + eps, min=eps)
         # plt.imshow(compressTensor(mask_priority)); plt.show()
