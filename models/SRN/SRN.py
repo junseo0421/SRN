@@ -348,7 +348,10 @@ class SemanticRegenerationNet(nn.Module):
                             only_inputs=True)[0]
         if mask is None:
             mask = torch.ones_like(gradients)
-        slopes = torch.sqrt(torch.sum(torch.square(gradients) * mask, [1, 2, 3]))
+        sum_sq = torch.sum(torch.square(gradients) * mask, dim=[1, 2, 3])
+
+        slopes = torch.sqrt(torch.clamp(sum_sq, min=1e-6))  # sqrt 안정화
+
         return torch.mean(torch.square(slopes - norm))
 
     def updateMask(self, mask, mask_priority, margin):
