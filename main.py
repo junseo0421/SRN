@@ -65,7 +65,7 @@ if __name__ == "__main__":
     p.add_argument('--gan_loss_alpha', type=float, default=1e-3)
     p.add_argument('--wgan_gp_lambda', type=float, default=10)
     p.add_argument('--pretrain_l1_alpha', type=float, default=1.2)
-    p.add_argument('--l1_loss_alpha', type=float, default=5)
+    p.add_argument('--l1_loss_alpha', type=float, default=50)
     # p.add_argument('--ae_loss_alpha', type=float, default=1.2)
     p.add_argument('--mrf_alpha', type=float, default=0.05)
     p.add_argument('--fa_alpha', type=float, default=0.5)

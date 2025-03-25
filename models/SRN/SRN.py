@@ -33,8 +33,8 @@ args = Namespace(
     pretrain_l1_alpha=1.2,
     wgan_gp_lambda=10,
     gan_loss_alpha=1e-3,
-    mrf_alpha=.05,
-    l1_loss_alpha=5,
+    mrf_alpha=.005,
+    l1_loss_alpha=50,
     # ae_loss_alpha=1.2,
 )
 
@@ -107,7 +107,7 @@ class build_generator(nn.Module):
         cnum = self.config.g_cnum
         # encoder
         encC = [3, cnum, 2 * cnum, 2 * cnum, 4 * cnum, 4 * cnum, 4 * cnum]
-        encF = [5, 4, 3, 4, 3, 3];
+        encF = [5, 4, 3, 4, 3, 3]
         encS = [1, 2, 1, 2, 1, 1]
         encP = [2, 1, 1, 1, 1, 1]
         self.Ge = nn.ModuleList([nn.Conv2d(encC[i], encC[i + 1],
@@ -320,7 +320,7 @@ class SemanticRegenerationNet(nn.Module):
             if i == iters - 2:
                 mask_priority_pre = mask_priority
             init = mask_priority + (1 - mask)
-        mask_priority = mask_priority_pre / (mask_priority + eps)
+        mask_priority = mask_priority_pre / torch.clamp(mask_priority + eps, min=eps)
         # plt.imshow(compressTensor(mask_priority)); plt.show()
         return mask_priority
 
