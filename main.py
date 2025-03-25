@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     # p.add_argument('--data', type=str, default='/media/yui/Disk/data/cat2dog/')
-    p.add_argument('--epoch', type=int, default=600)
+    p.add_argument('--epoch', type=int, default=400)
     p.add_argument('--pretrained_network', type=int, default=0, help="1: to pretrain network, 0: to finetune network")
     # p.add_argument('--weightpath', type=str, help="specify if pretrained_network=0")
     p.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
