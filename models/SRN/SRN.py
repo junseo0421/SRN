@@ -21,9 +21,9 @@ def compressTensor(x):
 
 args = Namespace(
     random_mask=1,
-    img_shapes=[192, 192, 3],
+    img_shapes=[256, 256, 3],
     margins=[0, 0],
-    mask_shapes=[192, 128],
+    mask_shapes=[128, 128],
     max_delta_shapes=[0, 0],
     feat_expansion_op='subpixel',
     g_cnum=64,
@@ -47,18 +47,13 @@ class Margin:
 
 def random_square(config):
     img_shape = config.img_shapes
-    img_height, img_width = img_shape[:2]  # 192 192
-    # # random_mask == 1
-    # maxt = img_height - config.margins[0] - config.mask_shapes[0]
-    # maxl = img_width - config.margins[1] - config.mask_shapes[1]
-    # t = int((config.margins[0] - maxt - 1) * torch.rand(1) + maxt + 1)
-    # l = int((config.margins[1] - maxl - 1) * torch.rand(1) + maxl + 1)
+    img_height, img_width = img_shape[:2]  # 256 256
 
-    h = torch.tensor([config.mask_shapes[0]])  # 192
+    h = torch.tensor([config.mask_shapes[0]])  # 128
     w = torch.tensor([config.mask_shapes[1]])  # 128
 
-    t = 0
-    l = 32
+    t = 64
+    l = 64
 
     margin = Margin(t, l, img_height - config.mask_shapes[0] - t, img_width - config.mask_shapes[1] - l)
 
@@ -77,7 +72,7 @@ def bbox2mask(bbox, config):  # (t,l,h,w), args
     height, width = img_shape[0], img_shape[1]  # 192, 192
     mask = npmask(bbox, height, width, config.max_delta_shapes[0],
                   config.max_delta_shapes[1])
-    return mask  # (1, 1, 192, 128)
+    return mask
 
 
 def gauss_kernel(size=21, sigma=3, inchannels=3, outchannels=3):
@@ -123,12 +118,12 @@ class build_generator(nn.Module):
                                            3, 1, 1) for i in range(len(decC) - 2)])
 
         # subpixel_conv
-        self.subpixel = nn.Conv2d(cnum, cnum, 3, 1, 1, 1)
+        self.subpixel = nn.Conv2d(cnum, 4*cnum, 3, 1, 1, 1)
 
         # 2
         # encoder
         encC = [68, cnum, cnum, 2 * cnum, 2 * cnum, 4 * cnum, 4 * cnum]
-        encF = [5, 4, 3, 4, 3, 3];
+        encF = [5, 4, 3, 4, 3, 3]
         encS = [1, 2, 1, 2, 1, 1]
         encP = [2, 1, 1, 1, 1, 1]
         self.Ge2 = nn.ModuleList([nn.Conv2d(encC[i], encC[i + 1],
@@ -140,7 +135,7 @@ class build_generator(nn.Module):
 
         # decoder
         decC = [4 * cnum] + encC[::-1]
-        decC[-2] = cnum // 2;
+        decC[-2] = cnum // 2
         decC[-1] = 3
         self.Gd2 = nn.ModuleList([nn.Conv2d(decC[i], decC[i + 1],
                                             3, 1, 1) for i in range(len(decC) - 1)])
@@ -226,11 +221,9 @@ class build_generator(nn.Module):
         use_cn = self.config.use_cn
         fa_alpha = self.config.fa_alpha
         feature_expansion_op = self.subpixel_conv
-        # target_shape = mask.shape[2:]  # 192 128
-        target_shape = [192, 192]  # 192 192
-        # xin_expanded = F.pad(x, (margin.left, margin.right, margin.top, margin.bottom))
-        # xin_expanded = xin_expanded.view(-1, 3, target_shape[0], target_shape[1])  # 192 192
-        xin_expanded = x  # 192 192
+        target_shape = mask.shape[2:]
+        xin_expanded = F.pad(x, (margin.left, margin.right, margin.top, margin.bottom))
+        xin_expanded = xin_expanded.view(-1, 3, target_shape[0], target_shape[1])  # 192 192
         expand_scale_ratio = int(np.prod(mask.shape[2:]) / np.prod(x.shape[2:]))
 
         x_ = self.FEN(x)  # 192 128
@@ -251,7 +244,7 @@ class build_contextual_wgan_discriminator(nn.Module):
         gloC = [3, cnum, cnum * 2, cnum * 4, cnum * 2]
         self.Dg = nn.ModuleList([nn.Conv2d(gloC[i], gloC[i + 1],
                                            5, 2, i % 2 + 1) for i in range(len(gloC) - 1)])
-        self.Dlin = nn.Linear(18432, 1)  # in_features 교체함
+        self.Dlin = nn.Linear(32768, 1)
 
         # contextual
         conC = [3, cnum, cnum * 2, cnum * 4]
@@ -360,9 +353,9 @@ class SemanticRegenerationNet(nn.Module):
 
         return torch.mean(torch.square(slopes - norm))
 
-    def updateMask(self, mask, margin):
-        self.mask, self.margin = mask, margin
-        # self.mask_priority = mask_priority
+    def updateMask(self, mask, mask_priority, margin):
+        self.mask, self.margin = mask,margin
+        self.mask_priority = mask_priority
 
     def forwardD(self, x, batch_complete, mask, losses):
         # gan
@@ -404,7 +397,7 @@ class SemanticRegenerationNet(nn.Module):
         losses['d_loss'] += losses['gp_loss']
         return g_loss_local, d_loss_local, g_loss_global, g_loss_global, losses
 
-    def forwardG(self, x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses):
+    def forwardG(self, x, batch_incomplete, batch_predicted, batch_complete, mask, margin, mask_priority, losses):
         # generator
         x_ = batch_predicted
 
@@ -417,16 +410,15 @@ class SemanticRegenerationNet(nn.Module):
             losses['id_mrf_loss'] = self.mrfloss(batch_predicted, x)
 
         # loss calculation for generator
-        # losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask_priority)
-        losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask)
+        losses['l1_loss'] = self.config.pretrain_l1_alpha * torch.mean(torch.abs(x - x_) * mask_priority)
 
         g_loss_local, d_loss_local, g_loss_global, g_loss_global, losses = self.forwardD(x, batch_complete, mask, losses)
 
         # visualization
         global_wgan_loss_alpha = 1
-        # batch_incomplete_pad = F.pad(batch_incomplete, (margin.left, margin.right, margin.top, margin.bottom))
-        # viz_img = torch.cat([x[0], batch_incomplete_pad[0], batch_complete[0]], axis=2)  # 원본 이미지, 마스크로 가려진 불완전 이미지, 복원 결과 (완성된 이미지)
-        viz_img = torch.cat([x[0], batch_complete[0]], axis=2)
+        batch_incomplete_pad = F.pad(batch_incomplete, (margin.left, margin.right, margin.top, margin.bottom))
+        viz_img = torch.cat([x[0], batch_incomplete_pad[0], batch_complete[0]], axis=2)  # 원본 이미지, 마스크로 가려진 불완전 이미지, 복원 결과 (완성된 이미지)
+        # viz_img = torch.cat([x[0], batch_incomplete_pad[0], batch_complete[0]], axis=2)
         viz_img = torch.clamp(viz_img, -1, 1)
         viz_img = compressTensor(viz_img).transpose(1, 2, 0) * 127.5 + 127.5
         # if not self.config.pretrained_network:
@@ -437,21 +429,19 @@ class SemanticRegenerationNet(nn.Module):
         if self.config.mrf_alpha:
             losses['g_loss'] += self.config.mrf_alpha * losses['id_mrf_loss']
         losses['g_loss'] += self.config.l1_loss_alpha * losses['l1_loss']
-        
+
         return losses, viz_img
 
-    def forward(self, x, mask_img, oG=None, oD=None):
+    def forward(self, x, oG=None, oD=None):
         # mask for cropping
-        bbox, margin = self.bbox_gen(self.config)  # (t,l,h,w), margin : (0, 32, 0, 32)
+        bbox, margin = self.bbox_gen(self.config)  # (t,l,h,w), margin : (64, 64, 64, 64)
         mask = bbox2mask(bbox, args)  # (1, 1, 192, 128) 부분이 1
         mask = torch.tensor(1 - mask, requires_grad=False).cuda()  # 192 192
         h, w = x.shape[2:]
+        batch_incomplete = x[:, :, margin.top:margin.top + self.config.mask_shapes[0], margin.left:margin.left + self.config.mask_shapes[1]]  # 양옆이 잘린 이미지, 192 x 128
 
-        # batch_incomplete = x[:, :, margin.top:margin.top + self.config.mask_shapes[0], margin.left:margin.left + self.config.mask_shapes[1]]  # 양옆이 잘린 이미지, 192 x 128
-        batch_incomplete = mask_img
-
-        # mask_priority = self.relative_spatial_variant_mask(mask)
-        self.updateMask(mask, margin)
+        mask_priority = self.relative_spatial_variant_mask(mask)
+        self.updateMask(mask, mask_priority, margin)
         x_, x_fe = self.build_generator(batch_incomplete, mask, margin)  # x_ : 복원 이미지
         batch_predicted = x_
 
@@ -469,13 +459,13 @@ class SemanticRegenerationNet(nn.Module):
 
             oG.zero_grad()
             # losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses)
-            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses)
+            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, mask_priority, losses)
             losses['g_loss'].backward()
             oG.step()
         else:
             _, _, _, _, losses = self.forwardD(x, batch_complete, mask, losses)
             # losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, mask_priority, margin, losses)
-            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, losses)
+            losses, viz_img = self.forwardG(x, batch_incomplete, batch_predicted, batch_complete, mask, margin, mask_priority, losses)
         return losses, viz_img  # viz_img : 0~255
 
 

@@ -69,7 +69,7 @@ class dataset_norm(Dataset):
     # prepare data for self-reconstruction,
     # where the two input photos and the intermediate region are obtained from the same image
 
-    def __init__(self, root='', transforms=None, imgSize=192, inputsize=128, imglist1=[]):
+    def __init__(self, root='', transforms=None, imglist1=[]):
         # --PARAMS--
         # root: the path of the data
         # crop: 'rand' or 'center' or 'none', which way to crop the image into target size
@@ -77,15 +77,7 @@ class dataset_norm(Dataset):
 
         #self.img_list = []
         self.transforms = transforms
-        self.imgSize = imgSize
-        self.inputsize = inputsize
-
         self.img_list1 = imglist1
-
-        # for name in file_list:
-        #     img = Image.open(name)
-        #     if (img.size[0] >= (self.imgSize)) and (img.size[1] >= self.imgSize):
-        #         self.img_list += [name]
 
         self.size = len(self.img_list1)
 
@@ -97,13 +89,13 @@ class dataset_norm(Dataset):
         if self.transforms:
             img = self.transforms(img)
 
-        i = (self.imgSize - self.inputsize) // 2  # (192 - 128) / 2 = 32
+        # i = (self.imgSize - self.inputsize) // 2  # (192 - 128) / 2 = 32
+        #
+        # iner_img = img[:, :, i:i + self.inputsize]
+        # mask_img = np.ones((3, self.imgSize, self.imgSize))
+        # mask_img[:, :, i:i + self.inputsize] = iner_img
 
-        iner_img = img[:, :, i:i + self.inputsize]
-        mask_img = np.ones((3, self.imgSize, self.imgSize))
-        mask_img[:, :, i:i + self.inputsize] = iner_img
-
-        return img, mask_img
+        return img
 
     def __len__(self):
         return self.size
@@ -115,7 +107,7 @@ class dataset_test4(Dataset):
     # prepare data for self-reconstruction,
     # where the two input photos and the intermediate region are obtained from the same image
 
-    def __init__(self, root='', transforms=None, imgSize=192, inputsize=128, pred_step=1, imglist=[]):
+    def __init__(self, root='', transforms=None, imglist=[]):
         # --PARAMS--
         # root: the path of the data
         # crop: 'rand' or 'center' or 'none', which way to crop the image into target size
@@ -123,10 +115,6 @@ class dataset_test4(Dataset):
 
         self.pred_step = pred_step
         self.transforms = transforms
-        self.imgSize = imgSize
-        self.preSize = imgSize + 64 * (pred_step - 1)
-        self.inputsize = inputsize
-        self.inputsize2 = inputsize + 64 * (pred_step - 1)
 
         self.img_list = imglist
 
@@ -146,28 +134,13 @@ class dataset_test4(Dataset):
         name = self.img_list[index]
         img = Image.open(name).convert('RGB')
 
-        i = (self.imgSize - self.inputsize) // 2
-        # j = (self.preSize - self.inputsize) // 2
-
         if self.transforms is not None:
             img = self.transforms(img)
 
-        iner_img = img
-
-        ## 2023 11 14 홍진성 마스킹 수정 (너비 방향으로만 처리)
-        mask_img = np.ones((3, self.preSize, self.preSize))
-        if self.pred_step > 1:
-        #mask_img[:,i:i + self.inputsize + 64*(self.pred_step-1),i:i + self.inputsize + 32*self.pred_step]=img
-            mask_img[:, i:i + self.inputsize2, i:i+self.inputsize2] = img
-        else:
-            mask_img[:, :, i:i + self.inputsize2] = iner_img
-
-        return img, iner_img, mask_img, splitext(basename(name))[0], name.replace('\\', '/').split('/')[-2]
-        # return torch.rand((3,192,192)), torch.rand((3,192,192)), torch.rand((3,192,192)), '', ''
+        return img, splitext(basename(name))[0], name.replace('\\', '/').split('/')[-2]
 
     def __len__(self):
         return self.size
-        # return 10000
 
 class dataset_test3(Dataset):
     # prepare data for self-reconstruction,
