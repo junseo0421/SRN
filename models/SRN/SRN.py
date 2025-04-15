@@ -177,19 +177,28 @@ class build_generator(nn.Module):
                                keepdim=True) / x_cnt
         x_mean = Variable(x_mean, requires_grad=False)
         x_variance = Variable(x_variance, requires_grad=False)
-        return x_mean.squeeze(), x_variance.squeeze()
+        return x_mean, x_variance
 
-    def context_normalization(self, x, mask, alpha=.5, eps=1e-5):
+    def context_normalization(self, x, mask, alpha=.5, eps=1e-3):
         mask_s = F.interpolate(1 - mask[:, :1, :, :], x.shape[2:])
-        x_known_mean, x_known_variance = self.estimate_meanvar(x, mask_s, eps)
 
-        x_known_variance = torch.clamp(x_known_variance, min=1e-6)
+        x_known_mean, x_known_variance = self.estimate_meanvar(x, mask_s, eps)
+        x_known_variance = torch.clamp(x_known_variance, min=1e-3)
 
         mask_s_rev = 1 - mask_s
+
+        # unknown 영역 통계 계산
         x_unknown_mean, x_unknown_variance = self.estimate_meanvar(x, mask_s_rev, eps)
-        x_unknown = alpha * F.batch_norm(x * mask_s_rev, x_unknown_mean, x_unknown_variance,
-                                         torch.sqrt(x_known_variance), x_known_mean, eps=eps, training=False) + (
-                                1 - alpha) * x * mask_s_rev
+        x_unknown_variance = torch.clamp(x_unknown_variance, min=1e-3)
+
+        # 직접 정규화 계산: (값 - 평균) / sqrt(분산+eps)
+        x_unknown_norm = (x * mask_s_rev - x_unknown_mean) / torch.sqrt(x_unknown_variance + eps)
+        # known 영역의 통계(분산, 평균)로 스케일 및 이동
+        x_unknown_norm = x_unknown_norm * torch.sqrt(x_known_variance + eps) + x_known_mean
+
+        # alpha 값에 따라 정규화 결과와 원본 값을 혼합
+        x_unknown = alpha * x_unknown_norm + (1 - alpha) * (x * mask_s_rev)
+
         x = x_unknown * mask_s_rev + x * mask_s
         return x
 
@@ -308,19 +317,26 @@ class SemanticRegenerationNet(nn.Module):
         self.subpixelconv = nn.Conv2d(1, 1, 64, 1, 31, bias=False)
 
     def relative_spatial_variant_mask(self, mask, hsize=64, sigma=1 / 40, iters=9):  # 가장자리 근처는 더 중요한 영역이라고 표시하는 맵
-        eps = 1e-5
+        eps = 1e-3
         init = 1 - mask.clone().detach()
         kernel = make_gauss_var(hsize, sigma).cuda()
         self.subpixelconv.weight = nn.Parameter(kernel, requires_grad=False)
+
         for i in range(iters):
-            mask_priority = F.pad(self.subpixelconv(init), (0, 1, 0, 1))
-            # mask_priority = F.interpolate(self.subpixelconv(init),mask.shape[2:])
-            mask_priority *= mask
-            if i == iters - 2:
-                mask_priority_pre = torch.clamp(mask_priority + eps, min=eps)
-            init = mask_priority + (1 - mask)
-        mask_priority = mask_priority_pre / torch.clamp(mask_priority + eps, min=eps)
-        # plt.imshow(compressTensor(mask_priority)); plt.show()
+            init = F.pad(self.subpixelconv(init), (0, 1, 0, 1))
+
+            # mask_priority *= mask
+            # if i == iters - 2:
+            #     mask_priority_pre = torch.clamp(mask_priority + eps, min=eps)
+            # init = mask_priority + (1 - mask)
+
+            # 마스크가 적용된 영역은 그대로 사용하고 나머지 영역은 보완
+            init = init * mask + (1 - mask)
+
+        # mask_priority = mask_priority_pre / torch.clamp(mask_priority + eps, min=eps)
+
+        # 0과 1 사이로 클램핑하여 지나친 값 폭주 방지
+        mask_priority = torch.clamp(init, min=0, max=1)
         return mask_priority
 
     def random_interpolates(self, x, y, alpha=None):
@@ -435,10 +451,10 @@ class SemanticRegenerationNet(nn.Module):
     def forward(self, x, oG=None, oD=None):
         # mask for cropping
         bbox, margin = self.bbox_gen(self.config)  # (t,l,h,w), margin : (64, 64, 64, 64)
-        mask = bbox2mask(bbox, args)  # (1, 1, 192, 128) 부분이 1
-        mask = torch.tensor(1 - mask, requires_grad=False).cuda()  # 192 192
+        mask = bbox2mask(bbox, args)  # (1, 1, 128, 128) 부분이 1
+        mask = torch.tensor(1 - mask, requires_grad=False).cuda()  # 256 256
         h, w = x.shape[2:]
-        batch_incomplete = x[:, :, margin.top:margin.top + self.config.mask_shapes[0], margin.left:margin.left + self.config.mask_shapes[1]]  # 양옆이 잘린 이미지, 192 x 128
+        batch_incomplete = x[:, :, margin.top:margin.top + self.config.mask_shapes[0], margin.left:margin.left + self.config.mask_shapes[1]]  # 양옆이 잘린 이미지, 128 128
 
         mask_priority = self.relative_spatial_variant_mask(mask)
         self.updateMask(mask, mask_priority, margin)

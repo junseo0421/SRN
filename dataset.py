@@ -107,25 +107,13 @@ class dataset_test4(Dataset):
     # prepare data for self-reconstruction,
     # where the two input photos and the intermediate region are obtained from the same image
 
-    def __init__(self, root='', transforms=None, imglist=[]):
-        # --PARAMS--
-        # root: the path of the data
-        # crop: 'rand' or 'center' or 'none', which way to crop the image into target size
-        # imgSize: the size of the returned image if crop is not 'none'
-
-        self.pred_step = pred_step
-        self.transforms = transforms
+    def __init__(self, root='', transforms1=None, transforms2=None, imglist=[]):
+        self.transforms1 = transforms1
+        self.transforms2 = transforms2
 
         self.img_list = imglist
-
-        # for name in file_list:
-        #     img = Image.open(name)
-        #     #if (img.size[0] >= self.imgSize) and (img.size[1] >= self.imgSize):
-        #     if (img.size[0] >= 0) and (img.size[1] >= 0):
-        #         self.img_list += [name]
-
         self.size = len(self.img_list)
-    ## 128 x 128 real 이고 나머지는 마스킹 영역
+
     def __getitem__(self, index):
         # --RETURN--
         # input1(left), input2(right), groundtruth of the intermediate region
@@ -134,10 +122,17 @@ class dataset_test4(Dataset):
         name = self.img_list[index]
         img = Image.open(name).convert('RGB')
 
-        if self.transforms is not None:
-            img = self.transforms(img)
+        if self.transforms1 is not None:
+            img1 = self.transforms1(img)
 
-        return img, splitext(basename(name))[0], name.replace('\\', '/').split('/')[-2]
+        if self.transforms2 is not None:
+            img2 = self.transforms2(img)
+
+        iner_img = img1
+
+        resize_img = img2
+
+        return img1, iner_img, resize_img, splitext(basename(name))[0], name.replace('\\', '/').split('/')[-2]
 
     def __len__(self):
         return self.size

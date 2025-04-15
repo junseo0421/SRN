@@ -37,7 +37,7 @@ def generateViz(x):
 
 
 if __name__ == "__main__":
-    NAME_DATASET = 'HKdb-1'
+    NAME_DATASET = 'HKdb-2'
     SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
     SAVE_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
@@ -114,10 +114,11 @@ if __name__ == "__main__":
             Normalize(mean, std)
         ])
 
-        train_data = dataset_norm(transforms=trans, imgSize=192, inputsize=128, imglist1=train_ls_original)
+        train_data = dataset_norm(transforms=trans, imglist1=train_ls_original)
         dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
         model = SemanticRegenerationNet(args).to('cuda:0')
+        model.train()  # 모델을 학습 모드로 전환
 
         print_model_parameters(model)
 
@@ -130,7 +131,7 @@ if __name__ == "__main__":
         # Training loop
         ite = 0
 
-        for epoch in range(args.epoch):
+        for epoch in range(1, 1 + args.epoch):
             print('[INFO] Epoch {}'.format(epoch))
 
             g_loss_sum = 0
@@ -140,10 +141,10 @@ if __name__ == "__main__":
             n = 0
 
             with tqdm(total=len(dataloader), desc=f"Training Epoch {epoch}") as pbar:
-                for idx, (im, mask_img) in enumerate(dataloader):
-                    im, mask_img = Variable(im).cuda(0), Variable(mask_img.type(torch.FloatTensor)).cuda(0)
+                for idx, im in enumerate(dataloader):
+                    im = Variable(im).cuda(0)
 
-                    losses, viz = model(im, mask_img, optimG, optimD)
+                    losses, viz = model(im, optimG, optimD)
 
                     g_loss_sum += losses['g_loss'].item()
                     d_loss_sum += losses['d_loss'].item()
