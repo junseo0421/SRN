@@ -50,10 +50,10 @@ class IDMRFLoss(nn.Module):
         self.lambda_content = 1.0
 
     def sum_normalize(self, featmaps):
+        epsilon = 1e-6
         reduce_sum = torch.sum(featmaps, dim=1, keepdim=True)
-        reduce_sum = torch.clamp(reduce_sum, min=1e-6)
-
-        return featmaps / reduce_sum
+        temp = featmaps / (reduce_sum + epsilon)
+        return temp
 
     def patch_extraction(self, featmaps):
         patch_size = 1
@@ -66,13 +66,16 @@ class IDMRFLoss(nn.Module):
 
     def compute_relative_distances(self, cdist):
         epsilon = 1e-5
+        # 최소값을 구한 후 clmap해서 0이 안 되도록 함
         div = torch.min(cdist, dim=1, keepdim=True)[0]
-        relative_dist = cdist / (div + epsilon)
+        div = torch.clamp(div, min=epsilon)
+        relative_dist = cdist / div
         return relative_dist
 
     def exp_norm_relative_dist(self, relative_dist):
+        epsilon = 1e-5
         scaled_dist = relative_dist
-        dist_before_norm = torch.exp((self.bias - scaled_dist)/self.nn_stretch_sigma)
+        dist_before_norm = torch.exp((self.bias - scaled_dist) / (self.nn_stretch_sigma + epsilon))
         self.cs_NCHW = self.sum_normalize(dist_before_norm)
         return self.cs_NCHW
 
@@ -80,16 +83,13 @@ class IDMRFLoss(nn.Module):
         meanT = torch.mean(tar, 1, keepdim=True)
         gen_feats, tar_feats = gen - meanT, tar - meanT
 
-        eps = 1e-6
+        epsilon = 1e-5
 
         gen_feats_norm = torch.norm(gen_feats, p=2, dim=1, keepdim=True)
         tar_feats_norm = torch.norm(tar_feats, p=2, dim=1, keepdim=True)
 
-        gen_feats_norm = torch.clamp(gen_feats_norm, min=eps)
-        tar_feats_norm = torch.clamp(tar_feats_norm, min=eps)
-
-        gen_normalized = gen_feats / gen_feats_norm
-        tar_normalized = tar_feats / tar_feats_norm
+        gen_normalized = gen_feats / (gen_feats_norm + epsilon)
+        tar_normalized = tar_feats / (tar_feats_norm + epsilon)
 
         cosine_dist_l = []
         BatchSize = tar.size(0)
@@ -109,8 +109,8 @@ class IDMRFLoss(nn.Module):
         k_max_nc = torch.max(rela_dist.view(dims_div_mrf[0], dims_div_mrf[1], -1), dim=2)[0]
         div_mrf = torch.mean(k_max_nc, dim=1)
 
+        # log 취하기 전에 최소값 clamp하여 log(0) 방지
         div_mrf = torch.clamp(div_mrf, min=1e-6)
-
         div_mrf_sum = -torch.log(div_mrf)
         div_mrf_sum = torch.sum(div_mrf_sum)
         return div_mrf_sum
