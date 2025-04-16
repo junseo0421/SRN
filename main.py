@@ -37,7 +37,7 @@ def generateViz(x):
 
 
 if __name__ == "__main__":
-    NAME_DATASET = 'HKdb-2'
+    NAME_DATASET = 'SDdb-1'
     SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
     SAVE_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
