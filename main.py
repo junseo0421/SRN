@@ -134,8 +134,8 @@ if __name__ == "__main__":
         if load_pretrain:
             start_epoch = 290
             print(f'Loading model weight...at epoch {start_epoch}')
-            model.build_generator.state_dict(torch.load(join(args.load_weight_dir, f'Gen_former_{start_epoch}.pt')))
-            model.build_contextual_wgan_discriminator.load_state_dict(torch.load(join(args.load_weight_dir, f'Dis_former_{start_epoch}.pt')))
+            model.build_generator.load_state_dict(torch.load(join(LOAD_WEIGHT_DIR, f'Gen_former_{start_epoch}.pt')))
+            model.build_contextual_wgan_discriminator.load_state_dict(torch.load(join(LOAD_WEIGHT_DIR, f'Dis_former_{start_epoch}.pt')))
         else:
             start_epoch = 0
 
