@@ -40,6 +40,8 @@ if __name__ == "__main__":
     NAME_DATASET = 'SDdb-1'
     SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
+    load_pretrain = True
+
     SAVE_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
     SAVE_LOG_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'logs_all')
     LOAD_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
@@ -128,10 +130,19 @@ if __name__ == "__main__":
         optimG = optim.Adam(model.build_generator.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         optimD = optim.Adam(model.build_contextual_wgan_discriminator.parameters(), lr=args.lrD,
                             betas=(args.beta1, args.beta2))
+        
+        if load_pretrain:
+            start_epoch = 290
+            print(f'Loading model weight...at epoch {start_epoch}')
+            model.build_generator.state_dict(torch.load(join(args.load_weight_dir, f'Gen_former_{start_epoch}.pt')))
+            model.build_contextual_wgan_discriminator.load_state_dict(torch.load(join(args.load_weight_dir, f'Dis_former_{start_epoch}.pt')))
+        else:
+            start_epoch = 0
+
         # Training loop
         ite = 0
 
-        for epoch in range(1, 1 + args.epoch):
+        for epoch in range(start_epoch + 1, 1 + args.epochs):
             print('[INFO] Epoch {}'.format(epoch))
 
             g_loss_sum = 0
