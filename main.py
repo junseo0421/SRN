@@ -142,7 +142,7 @@ if __name__ == "__main__":
         # Training loop
         ite = 0
 
-        for epoch in range(start_epoch + 1, 1 + args.epochs):
+        for epoch in range(start_epoch + 1, 1 + args.epoch):
             print('[INFO] Epoch {}'.format(epoch))
 
             g_loss_sum = 0
