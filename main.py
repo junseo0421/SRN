@@ -74,7 +74,7 @@ if __name__ == "__main__":
     p.add_argument('--lrG', type=float, default=1e-4) # 원래 1e-5
     p.add_argument('--lrD', type=float, default=1e-4) # 원래 1e-5
     p.add_argument('--lpG', type=int, default=1)
-    p.add_argument('--lpD', type=int, default=5)
+    p.add_argument('--lpD', type=int, default=1) # 원래 5
     p.add_argument('--beta1', type=float, default=.5)
     p.add_argument('--beta2', type=float, default=.9)
     p.add_argument('--l1_type', type=int, default=0)
