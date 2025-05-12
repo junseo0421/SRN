@@ -40,7 +40,7 @@ if __name__ == "__main__":
     NAME_DATASET = 'SDdb-1'
     SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
-    load_pretrain = True
+    load_pretrain = False
 
     SAVE_WEIGHT_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'checkpoints')
     SAVE_LOG_DIR = join(SAVE_BASE_DIR, NAME_DATASET, 'logs_all')
@@ -71,8 +71,8 @@ if __name__ == "__main__":
     # p.add_argument('--ae_loss_alpha', type=float, default=1.2)
     p.add_argument('--mrf_alpha', type=float, default=0.05)
     p.add_argument('--fa_alpha', type=float, default=0.5)
-    p.add_argument('--lrG', type=float, default=1e-5)
-    p.add_argument('--lrD', type=float, default=1e-5)
+    p.add_argument('--lrG', type=float, default=1e-4) # 원래 1e-5
+    p.add_argument('--lrD', type=float, default=1e-4) # 원래 1e-5
     p.add_argument('--lpG', type=int, default=1)
     p.add_argument('--lpD', type=int, default=5)
     p.add_argument('--beta1', type=float, default=.5)
