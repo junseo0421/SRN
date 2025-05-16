@@ -37,7 +37,7 @@ def generateViz(x):
 
 
 if __name__ == "__main__":
-    NAME_DATASET = 'SDdb-1'
+    NAME_DATASET = 'SDdb-2'
     SAVE_BASE_DIR = '/content/drive/MyDrive/comparison/srn/output'
 
     load_pretrain = False
